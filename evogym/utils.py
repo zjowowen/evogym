@@ -19,6 +19,7 @@ BASELINE_ENV_NAMES = [
     'BridgeWalker-v0',
     'BidirectionalWalker-v0',
     'Carrier-v0',
+    'CarrierFullInfo-v0',
     'Carrier-v1',
     'Pusher-v0',
     'Pusher-v1',

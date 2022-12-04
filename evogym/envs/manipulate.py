@@ -73,6 +73,67 @@ class PackageBase(BenchmarkBase):
 
         return obs
 
+class PackageBaseFullInfo(BenchmarkBase):
+    
+    def __init__(self, world):
+        super().__init__(world)
+        self.default_viewer.track_objects('robot', 'package')
+
+    def get_obs(self, robot_pos_final, robot_vel_final, package_pos_final, package_vel_final):
+        
+        robot_com_pos = np.mean(robot_pos_final, axis=1)
+        robot_com_vel = np.mean(robot_vel_final, axis=1)
+        box_com_pos = np.mean(package_pos_final, axis=1)
+        box_com_vel = np.mean(package_vel_final, axis=1)
+
+        obs = np.array([
+            robot_com_vel[0], robot_com_vel[1],
+            box_com_pos[0]-robot_com_pos[0], box_com_pos[1]-robot_com_pos[1],
+            box_com_vel[0], box_com_vel[1]
+        ])
+
+        return obs
+
+    def get_reward(self, package_pos_init, package_pos_final, robot_pos_init, robot_pos_final):
+        
+        package_com_pos_init = np.mean(package_pos_init, axis=1)
+        package_com_pos_final = np.mean(package_pos_final, axis=1)
+        
+        robot_com_pos_init = np.mean(robot_pos_init, axis=1)
+        robot_com_pos_final = np.mean(robot_pos_final, axis=1)
+
+        # positive reward for moving forward
+        reward = (package_com_pos_final[0] - package_com_pos_init[0])*0.75
+        reward += (robot_com_pos_final[0] - robot_com_pos_init[0])*0.5
+
+        # negative reward for robot/block separating
+        reward += abs(robot_com_pos_init[0] - package_com_pos_init[0]) - abs(robot_com_pos_final[0] - package_com_pos_final[0])
+
+        # negative reward for block going below thresh height
+        if package_com_pos_final[1] < self.thresh_height:
+            reward += 10 * (package_com_pos_final[1] - package_com_pos_init[1])
+    
+        return reward
+
+    def reset(self):
+        
+        super().reset()
+
+        # observation
+        robot_pos_final = self.object_pos_at_time(self.get_time(), "robot")
+        robot_vel_final = self.object_vel_at_time(self.get_time(), "robot")
+        package_pos_final = self.object_pos_at_time(self.get_time(), "package")
+        package_vel_final = self.object_vel_at_time(self.get_time(), "package")
+
+        obs = self.get_obs(robot_pos_final, robot_vel_final, package_pos_final, package_vel_final)
+        obs = np.concatenate((
+            robot_pos_final.flatten(),
+            robot_vel_final.flatten(),
+            package_pos_final.flatten(),
+            package_vel_final.flatten(),
+        ))
+
+        return obs
 
 class CarrySmallRect(PackageBase):
 
@@ -151,6 +212,88 @@ class CarrySmallRect(PackageBase):
 
         # observation, reward, has simulation met termination conditions, debugging info
         return obs, reward, done, {}
+
+class CarrySmallRectFullInfo(PackageBaseFullInfo):
+
+    def __init__(self, body, connections=None):
+        
+        # make world
+        self.world = EvoWorld.from_json(os.path.join(self.DATA_PATH, 'Carrier-v0.json'))
+        self.world.add_from_array('robot', body, 1, 1, connections=connections)
+
+        # init sim
+        PackageBaseFullInfo.__init__(self, self.world)
+
+        # set action space and observation space
+        num_actuators = self.get_actuator_indices('robot').size
+        num_robot_points = self.object_pos_at_time(self.get_time(), "robot").size
+        num_package_points = self.object_pos_at_time(self.get_time(), "package").size
+
+        self.action_space = spaces.Box(low= 0.6, high=1.6, shape=(num_actuators,), dtype=np.float)
+        self.observation_space = spaces.Box(low=-100.0, high=100.0, shape=(num_package_points*2 + num_robot_points*2,), dtype=np.float)
+
+        # threshhold height
+        self.thresh_height = 3.0*self.VOXEL_SIZE
+
+    def get_reward_carry(self, package_pos_init, package_pos_final, robot_pos_init, robot_pos_final):
+        
+        package_com_pos_init = np.mean(package_pos_init, axis=1)
+        package_com_pos_final = np.mean(package_pos_final, axis=1)
+        
+        robot_com_pos_init = np.mean(robot_pos_init, axis=1)
+        robot_com_pos_final = np.mean(robot_pos_final, axis=1)
+
+        # positive reward for moving forward
+        reward = (package_com_pos_final[0] - package_com_pos_init[0])*0.5
+        reward += (robot_com_pos_final[0] - robot_com_pos_init[0])*0.5
+
+        # negative reward for block going below thresh height
+        if package_com_pos_final[1] < self.thresh_height:
+            reward += 10 * (package_com_pos_final[1] - package_com_pos_init[1])
+    
+        return reward
+
+    def step(self, action):
+
+        # collect pre step information
+        package_pos_init = self.object_pos_at_time(self.get_time(), "package")
+        robot_pos_init = self.object_pos_at_time(self.get_time(), "robot")
+
+        # step
+        done = super().step({'robot': action})
+
+        # collect post step information
+        robot_pos_final = self.object_pos_at_time(self.get_time(), "robot")
+        robot_vel_final = self.object_vel_at_time(self.get_time(), "robot")
+        package_pos_final = self.object_pos_at_time(self.get_time(), "package")
+        package_vel_final = self.object_vel_at_time(self.get_time(), "package")
+
+        # observation
+        obs = super().get_obs(robot_pos_final, robot_vel_final, package_pos_final, package_vel_final)
+        obs = np.concatenate((
+            robot_pos_final.flatten(),
+            robot_vel_final.flatten(),
+            package_pos_final.flatten(),
+            package_vel_final.flatten(),
+        ))
+       
+        # compute reward
+        reward = self.get_reward_carry(package_pos_init, package_pos_final, robot_pos_init, robot_pos_final)
+
+        # error check unstable simulation
+        if done:
+            print("SIMULATION UNSTABLE... TERMINATING")
+            reward -= 3.0
+
+        # check goal met
+        com_2 = np.mean(robot_pos_final, 1)
+        if com_2[0] > (99)*self.VOXEL_SIZE:
+            done = True
+            reward += 1.0
+
+        # observation, reward, has simulation met termination conditions, debugging info
+        return obs, reward, done, {}
+
 
 class CarrySmallRectToTable(PackageBase):
 
