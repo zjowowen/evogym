@@ -127,16 +127,16 @@ class PackageBaseFullInfo(BenchmarkBase):
 
         obs = self.get_obs(robot_pos_final, robot_vel_final, package_pos_final, package_vel_final)
         obs = np.concatenate((
-            robot_pos_final.flatten(),
-            robot_vel_final.flatten(),
-            package_pos_final.flatten(),
-            package_vel_final.flatten(),
+            robot_pos_final[:,:8].flatten(),
+            robot_vel_final[:,:8].flatten(),
+            package_pos_final[:,:3].flatten(),
+            package_vel_final[:,:3].flatten(),
         ))
 
         return obs
 
 
-class PackageBase_64_Info(BenchmarkBase):
+class PackageBase_44_Info(BenchmarkBase):
     
     def __init__(self, world):
         super().__init__(world)
@@ -190,10 +190,10 @@ class PackageBase_64_Info(BenchmarkBase):
 
         obs = self.get_obs(robot_pos_final, robot_vel_final, package_pos_final, package_vel_final)
         obs = np.concatenate((
-            robot_pos_final.flatten()[:16],
-            robot_vel_final.flatten()[:16],
-            package_pos_final.flatten()[:16],
-            package_vel_final.flatten()[:16],
+            robot_pos_final[:,:8].flatten(),
+            robot_vel_final[:,:8].flatten(),
+            package_pos_final[:,:3].flatten(),
+            package_vel_final[:,:3].flatten(),
         ))
 
         return obs
@@ -359,7 +359,7 @@ class CarrySmallRectFullInfo(PackageBaseFullInfo):
         return obs, reward, done, {}
 
 
-class CarrySmallRect_64_Info(PackageBase_64_Info):
+class CarrySmallRect_44_Info(PackageBase_44_Info):
 
     def __init__(self, body, connections=None):
         
@@ -368,7 +368,7 @@ class CarrySmallRect_64_Info(PackageBase_64_Info):
         self.world.add_from_array('robot', body, 1, 1, connections=connections)
 
         # init sim
-        PackageBase_64_Info.__init__(self, self.world)
+        PackageBase_44_Info.__init__(self, self.world)
 
         # set action space and observation space
         num_actuators = self.get_actuator_indices('robot').size
