@@ -123,6 +123,12 @@ register(
 )
 
 register(
+    id = 'Carrier_64_Info-v0',
+    entry_point = 'evogym.envs.manipulate:CarrySmallRect_64_Info',
+    max_episode_steps=500
+)
+
+register(
     id = 'Carrier-v1',
     entry_point = 'evogym.envs.manipulate:CarrySmallRectToTable',
     max_episode_steps=1000
