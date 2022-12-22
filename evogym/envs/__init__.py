@@ -123,8 +123,26 @@ register(
 )
 
 register(
+    id = 'Carrier_12_Info-v0',
+    entry_point = 'evogym.envs.manipulate:CarrySmallRect_12_Info',
+    max_episode_steps=500
+)
+
+register(
+    id = 'Carrier_22_Info-v0',
+    entry_point = 'evogym.envs.manipulate:CarrySmallRect_22_Info',
+    max_episode_steps=500
+)
+
+register(
     id = 'Carrier_44_Info-v0',
     entry_point = 'evogym.envs.manipulate:CarrySmallRect_44_Info',
+    max_episode_steps=500
+)
+
+register(
+    id = 'Carrier_88_Info-v0',
+    entry_point = 'evogym.envs.manipulate:CarrySmallRect_88_Info',
     max_episode_steps=500
 )
 
