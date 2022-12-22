@@ -417,10 +417,10 @@ class CarrySmallRect_44_Info(PackageBase_44_Info):
         # observation
         obs = super().get_obs(robot_pos_final, robot_vel_final, package_pos_final, package_vel_final)
         obs = np.concatenate((
-            robot_pos_final.flatten()[:16],
-            robot_vel_final.flatten()[:16],
-            package_pos_final.flatten()[:16],
-            package_vel_final.flatten()[:16],
+            robot_pos_final[:,:8].flatten(),
+            robot_vel_final[:,:8].flatten(),
+            package_pos_final[:,:3].flatten(),
+            package_vel_final[:,:3].flatten(),
         ))
        
         # compute reward
